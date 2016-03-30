@@ -411,3 +411,4 @@ $(KCONFIG_AUTOHEADER): $(DEPENDENCY_CACHE) $(KCONFIG_CONFIG) $(obj)/conf
 bindings-python: $(SOL_LIB_OUTPUT)
 	echo "Generating python bindings..."
 	$(PYTHON3) $(top_srcdir)bindings/python/setup.py build -b $(PYTHON_GENERATED_PATH)
+	$(PYTHON3) $(top_srcdir)bindings/python/setup.py install --prefix=$(SOLETTA_INSTALL_ROOT)$(PREFIX)
