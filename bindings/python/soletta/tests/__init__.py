@@ -1,1 +1,1 @@
-from _soletta_tests import *
+from soletta.tests._soletta_tests import *

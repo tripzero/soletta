@@ -6,11 +6,20 @@ cdef extern from "sol-mainloop.h":
 	struct sol_timeout:
 		pass
 
+	struct sol_mainloop_implementation:
+		pass
+
+	int sol_init()
+
 	sol_timeout* sol_timeout_add(uint32_t, bint (*)(void*), void*)
 	bint sol_timeout_del(void*)
 
+	const sol_mainloop_implementation *sol_mainloop_get_implementation()
+
 
 tests = {}
+
+"""Tests should raise on a failure or otherwise return None on success."""
 
 def add_test(func):
 	tests[func] = False
@@ -18,6 +27,7 @@ def add_test(func):
 cdef bint cb(void* data):
 	cdef bint success = dref(<bint*>data)
 	success = True
+	print("timeout add callback called")
 	return False
 
 cdef bint cb2(void* data):
@@ -29,10 +39,14 @@ cdef bint cb2(void* data):
 
 def test_timeout():
 	success = False
-	t = sol_timeout_add(100, cb, <void*>&success)
+	t = sol_timeout_add(100, cb, <void*>success)
+
+	assert(t)
 
 	def post():
 		return success
+
+	return post
 	
 
 def test_timeout_del():
@@ -47,10 +61,15 @@ def test_timeout_del():
 	
 	return test_timeout_del_post
 
+def test_mainloop_impl():
+	if not sol_mainloop_get_implementation():
+		raise Exception("mainloop implementation None")
+
 def run_tests():
 
-	import asyncio
-	
+	sol_init()
+
+	add_test(test_mainloop_impl)
 	add_test(test_timeout)
 
 	post_test_checks = []
@@ -61,11 +80,15 @@ def run_tests():
 			if post:
 				post_test_checks.append(post)
 			print("{}: pass".format(test.__name__))
-		except:
+		except Exception, e:
 			print("{}: FAIL".format(test.__name__))
+			print(e)
 
-	asyncio.get_event_loop().run_forever()
+	loop = soletta.asyncio.get_event_loop()
+	loop.call_later(10, loop.stop)
+	loop.run_forever()
 
+	print("running post test checks...")
 	for post in post_test_checks:
 		try:
 			assert(post())
