@@ -63,7 +63,6 @@ _loop = MainloopAsyncio()
 def get_event_loop():
 	return _loop.loop
 
-@asyncio.coroutine
 def run_task(py_t):
 	print ("winning")
 
@@ -71,8 +70,8 @@ def run_task(py_t):
 				
 	print("run_task data = ", <bint>t.data)
 				
-	print("calling cb result: ", t.cb(t.data))
-		#yield from asyncio.sleep(t.timeout / 1000)
+	if t.cb(t.data):
+		get_event_loop().call_later(t.timeout/1000, run_task, py_t)
 
 
 cdef void * new_task(task_cb_t cb, void* data, uint32_t timeout = 100):
@@ -83,7 +82,7 @@ cdef void * new_task(task_cb_t cb, void* data, uint32_t timeout = 100):
 	
 	py_t = <object><void*>t
 
-	ret = _loop.loop.create_task(run_task(py_t))
+	ret = _loop.loop.call_later(timeout/1000.0, run_task, py_t)
 
 	return <void*>t
 
