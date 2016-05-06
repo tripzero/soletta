@@ -19,32 +19,38 @@ cdef extern from "sol-mainloop.h":
 
 tests = {}
 
-"""Tests should raise on a failure or otherwise return None on success."""
+"""
+Tests should raise on a failure or otherwise return None  or post_check on success.
+post_check - methods that run after the mainloop has completed its queued tasks.
+
+"""
 
 def add_test(func):
 	tests[func] = False
 
 cdef bint cb(void* data):
-	cdef bint success = dref(<bint*>data)
-	success = True
 	print("timeout add callback called")
+	success = <bint>data
+	success = True
+	print("callback returning...")
 	return False
 
 cdef bint cb2(void* data):
-	cdef int* d = <int*>data
-	cdef int count = dref(d)
+	count = <int>data
 	count+=1
 
 	return True
 
+cdef bint timeout_success = False
+
 def test_timeout():
-	success = False
-	t = sol_timeout_add(100, cb, <void*>success)
+	
+	t = sol_timeout_add(100, cb, <void*>timeout_success)
 
 	assert(t)
 
 	def post():
-		return success
+		return timeout_success
 
 	return post
 	
@@ -52,9 +58,9 @@ def test_timeout():
 def test_timeout_del():
 	cdef sol_timeout* t
 
-	cdef int callbackcounts = 0
+	callbackcounts = 0
 
-	t = sol_timeout_add(100, cb2, <void*>&callbackcounts)
+	t = sol_timeout_add(100, cb2, <void*>callbackcounts)
 
 	def test_timeout_del_post():
 		return callbackcounts >= 1

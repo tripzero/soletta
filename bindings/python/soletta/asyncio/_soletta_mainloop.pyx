@@ -42,6 +42,14 @@ cdef extern from "sol-mainloop.h":
 	cdef void emit_ifdef "#if defined(SOL_NO_API_VERSION) //" ()
 	cdef void emit_endif "#endif //" ()
 
+cdef extern from "helper_types.h":
+	ctypedef bint (*task_cb_t)(void* data)
+
+	struct TaskWrapper:
+		task_cb_t cb
+		void* data
+		uint32_t timeout
+
 class MainloopAsyncio:
 
 	def __init__(self, loop = asyncio.get_event_loop()):
@@ -55,26 +63,29 @@ _loop = MainloopAsyncio()
 def get_event_loop():
 	return _loop.loop
 
-cdef class TaskWrapper:
-
-	cdef bint (*) (void * data)* cb
-	cdef void* data
-	cdef uint32_t timeout
-
 @asyncio.coroutine
-def task(TaskWrapper* self):
-	while self.cb(self.data):
-		yield from asyncio.sleep(self.timeout / 1000)
+def run_task(py_t):
+	print ("winning")
 
-cdef void * new_task(bint (*cb) (void * data), void* data, uint32_t timeout = 100):
-	cdef TaskWrapper *t = <TaskWrapper*>PyMem_Malloc(sizeof(TaskWrapper))
+	cdef TaskWrapper *t = <TaskWrapper*><void*>py_t
+				
+	print("run_task data = ", <bint>t.data)
+				
+	print("calling cb result: ", t.cb(t.data))
+		#yield from asyncio.sleep(t.timeout / 1000)
+
+
+cdef void * new_task(task_cb_t cb, void* data, uint32_t timeout = 100):
+	cdef TaskWrapper* t = <TaskWrapper*>PyMem_Malloc(sizeof(TaskWrapper))
 	t.cb = cb
 	t.data = data
 	t.timeout = timeout
 	
-	_loop.loop.create_task(task(t))
+	py_t = <object><void*>t
 
-	return t
+	ret = _loop.loop.create_task(run_task(py_t))
+
+	return <void*>t
 
 
 cdef void wrap_sol_init():
